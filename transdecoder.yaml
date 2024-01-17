@@ -1,0 +1,27 @@
+name: transdecoder
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
+  - libdb=6.2.32=h9c3ff4c_0
+  - libgcc-ng=13.2.0=h807b86a_3
+  - libgomp=13.2.0=h807b86a_3
+  - libstdcxx-ng=13.2.0=h7e041cc_3
+  - libxcrypt=4.4.36=hd590300_1
+  - perl=5.32.1=7_hd590300_perl5
+  - perl-business-isbn=3.007=pl5321hdfd78af_0
+  - perl-business-isbn-data=20210112.006=pl5321hdfd78af_0
+  - perl-carp=1.38=pl5321hdfd78af_4
+  - perl-constant=1.33=pl5321hdfd78af_2
+  - perl-data-dumper=2.183=pl5321hec16e2b_1
+  - perl-db-file=1.855=pl5321h779adbc_1
+  - perl-encode=3.19=pl5321hec16e2b_1
+  - perl-exporter=5.72=pl5321hdfd78af_2
+  - perl-extutils-makemaker=7.70=pl5321hd8ed1ab_0
+  - perl-mime-base64=3.16=pl5321hec16e2b_2
+  - perl-parent=0.236=pl5321hdfd78af_2
+  - perl-uri=5.12=pl5321hdfd78af_0
+  - transdecoder=5.5.0=0
+prefix: /mnt/home/lkirsch/anaconda3/envs/transdecoder

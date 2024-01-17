@@ -11,7 +11,6 @@ print("Organism Name: " + TAXON)
 
 # Software paths
 orthomcl_path = "/mnt/scratch/brownlab/lkirsch/Ploidy/scripts/aa_seqs_OrthoMCL-5.fasta.removedspaces.fasta.dmnd"
-bbmap_path = "/mnt/scratch/brownlab/lkirsch/Ploidy/scripts/repair.sh"
 
 # Python script paths
 make_ortho_groups_path = "/mnt/scratch/brownlab/lkirsch/Ploidy/scripts/makeOrthoGroups.py"
@@ -56,9 +55,11 @@ rule predict_orfs:
             f"{TAXON}.fas.transdecoder_dir/longest_orfs.gff3",
             f"{TAXON}.fas.transdecoder_dir/base_freqs.dat"
     threads: 18 
+    conda:
+        "transdecoder.yaml"
     shell:
         '''
-        /mnt/scratch/brownlab/lkirsch/Ploidy/scripts/TransDecoder.LongOrfs -t {input}
+        TransDecoder.LongOrfs -t {input}
         '''
 
 
@@ -105,9 +106,11 @@ rule remove_bac:
 rule bbmap_repair:
     input: f"{TAXON}_trinity_out_dir/{READ1}.PwU.qtrim.fq" , f"{TAXON}_trinity_out_dir/{READ2}.PwU.qtrim.fq" 
     output: f"fixed_1_{TAXON}.fq.gz", f"fixed_2_{TAXON}.fq.gz", f"singletons_{TAXON}.fq.gz"
+    conda:
+        "bbmap.yaml"
     shell:
         '''
-        {bbmap_path} in1={input[0]} in2={input[1]} out1={output[0]} out2={output[1]} outsingle={output[2]}
+        repair.sh in1={input[0]} in2={input[1]} out1={output[0]} out2={output[1]} outsingle={output[2]}
         '''
 
 rule bowtie_ref:
