@@ -1,60 +1,88 @@
 import sys
+import glob
 import os
+import re
 
-def remove_gaps_from_fasta(fasta_file):
-    with open(fasta_file, "r") as infile, open(fasta_file + '.tmp', 'w') as outfile:
-        in_sequence = False
-        for line in infile:
-            if line.startswith('>'):
-                if in_sequence:
-                    outfile.write('\n')
-                outfile.write(line)
-                in_sequence = True
-            else:
-                line = line.strip().replace('-', '')  # Remove gaps
-                outfile.write(line)
-        if in_sequence:
-            outfile.write('\n')
+def oneline(db):
+ infile = open(db, "r")
+ lines = infile.readlines()
+ infile.close()
+ outfile = open(db,'w')
+ for i,line in enumerate(lines):
+    if line[0] == ('>'):
+        if i>0:
+            outfile.write("\n")
+        outfile.write(line)
+    else:
+        #line = line.strip()
+        #line = line.replace('-','')  ######## Add if you want to remove gaps!!!
+        outfile.write(line.strip())
+ outfile.close()
 
-def extract_bacterial_sequences(taxon_file, sequence_file, output_file, bacteria_list):
-    with open(taxon_file, "r") as infile:
-        taxon_lines = infile.readlines()
 
-    with open(sequence_file, "r") as seqfile:
-        sequence_lines = seqfile.readlines()
 
-    bact_seq_set = set()
-    for line in taxon_lines:
-        parts = line.strip().split("\t")
-        taxonhit = parts[2].split("|")[0]
-        if taxonhit in bacteria_list:
-            bact_seq_set.add(parts[0])
 
-    with open(output_file, "w") as outfile:
-        in_sequence = False
-        for line in sequence_lines:
-            if line.startswith('>'):
-                header = line.split(">")[1].split()[0].strip()
-                if header in bact_seq_set:
-                    in_sequence = True
-                else:
-                    in_sequence = False
-                    outfile.write(line)
-            elif in_sequence:
-                outfile.write(line)
+bacteria = ['atum', 'aaeo', 'aful', 'bant', 'bsui', 'bmal', 'bpse', 'cmaq', 'cjej', 'ckor', 'cpne', 'ctep', 'cbot', 'cper', 'cbur', 'deth', 'drad', 'ecol', 'ftul', 'halo', 'hwal', 'hbut', 'ihos', 'lmon', 'mgri', 'msed', 'msmi', 'mjan', 'mmar', 'mlep', 'mtub', 'nequ', 'nmar', 'rsol', 'rbal', 'rpro', 'rtyp', 'sent', 'sfle', 'saur', 'smar', 'spne', 'ssol', 'syne', 'tvol', 'tmar', 'tpal', 'vcho', 'wend', 'wsuc', 'ypes']
 
-if __name__ == '__main__':
-    if len(sys.argv) != 4:
-        print("Usage: python script.py <taxon_file> <sequence_file> <output_file>")
-        sys.exit(1)
+taxon = sys.argv[1]
+infile = open("%s" %(taxon),"r")
 
-    taxon_file = sys.argv[1]
-    sequence_file = sys.argv[2]
-    output_file = sys.argv[3]
+oneline(sys.argv[2])
 
-    bacteria = ['atum', 'aaeo', 'aful', 'bant', 'bsui', 'bmal', 'bpse', 'cmaq', 'cjej', 'ckor', 'cpne', 'ctep', 'cbot', 'cper', 'cbur', 'deth', 'drad', 'ecol', 'ftul', 'halo', 'hwal', 'hbut', 'ihos', 'lmon', 'mgri', 'msed', 'msmi', 'mjan', 'mmar', 'mlep', 'mtub', 'nequ', 'nmar', 'rsol', 'rbal', 'rpro', 'rtyp', 'sent', 'sfle', 'saur', 'smar', 'spne', 'ssol', 'syne', 'tvol', 'tmar', 'tpal', 'vcho', 'wend', 'wsuc', 'ypes']
+seqfile = open(sys.argv[2],"r") ### transcriptome fasta file NUCLEOTIDES
+seqlines = seqfile.readlines()
+seqfile.close()
 
-    remove_gaps_from_fasta(sequence_file)
-    extract_bacterial_sequences(taxon_file, sequence_file + '.tmp', output_file, bacteria)
+'''
+for line in seqlines:
+    if line[0]==">":
+        print (line)
+'''
 
-    os.remove(sequence_file + '.tmp')
+lines = infile.readlines()
+infile.close()
+outfile = open("%s-NoBact.out.fas" %(taxon),"w")
+
+bactseqlist = []
+for line in lines:
+    #print (line)
+    seq = line.split("\t")[0]
+    #seq = seq.split("spades55_")[1]
+    seq = seq.split(".")[0]
+    group = line.split("\t")[1]
+    taxonhit = line.split("\t")[2]
+    taxonhit = taxonhit.split("|")[0]
+    if taxonhit in bacteria:
+        bactseqlist.append(seq)
+        #print (taxonhit)
+    else:
+        pass
+
+print ("DONE with FirstPass")
+#print seqlines
+#print (bactseqlist)
+#print (len(bactseqlist))
+
+for j in range(len(seqlines)):
+    line =seqlines[j]
+    #print line
+    if line[0] == ">":
+        header = line.split(">")[1]
+        header = header.strip()
+        header = header.split()[0] 
+        #print (header)   
+        #header = header.split('_i')[0]
+        #print (header)
+        if header in bactseqlist:
+            pass
+            print (header)
+            print ("bacterial")
+            #outfile.write(line)
+            #next_l = lines[j+1]
+            #outfile.write(next_l)
+        else:
+            #print header
+            outfile.write(line)
+            next_l = seqlines[j+1]
+            outfile.write(next_l)
+outfile.close()

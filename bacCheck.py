@@ -1,39 +1,50 @@
-import os
 import sys
+import glob
+import os
 
-def remove_duplicate_lines(input_file, output_file):
-    lines_seen = set()
-    with open(input_file, 'r') as infile, open(output_file, 'w') as outfile:
-        for line in infile:
-            gene_id = line.split()[0]
-            if gene_id not in lines_seen:
-                outfile.write(line)
-                lines_seen.add(gene_id)
+bacteria = ['atum', 'aaeo', 'aful', 'bant', 'bsui', 'bmal', 'bpse', 'cmaq', 'cjej', 'ckor', 'cpne', 'ctep', 'cbot', 'cper', 'cbur', 'deth', 'drad', 'ecol', 'ftul', 'halo', 'hwal', 'hbut', 'ihos', 'lmon', 'mgri', 'msed', 'msmi', 'mjan', 'mmar', 'mlep', 'mtub', 'nequ', 'nmar', 'rsol', 'rbal', 'rpro', 'rtyp', 'sent', 'sfle', 'saur', 'smar', 'spne', 'ssol', 'syne', 'tvol', 'tmar', 'tpal', 'vcho', 'wend', 'wsuc', 'ypes']
 
-def process_blast_results(input_file, output_dir):
-    with open(input_file, 'r') as infile, open('orthologGroups', 'w') as outfile:
-        for line in infile:
-            fields = line.split('\t')
-            qseqid = fields[0]
-            evalue = float(fields[10])
-            sseqid = fields[1]
-            try:
-                oid = fields[1].split('OG5_')[1].split('|')[0]
-                if evalue <= 0.00001:
-                    outfile.write(f"{qseqid}\tOG5_{oid}\t{sseqid}\t{evalue}\n")
-            except:
-                pass
-    remove_duplicate_lines('orthologGroups', f'{output_dir}/orthologGroups')
+taxon = sys.argv[1]
+genome = sys.argv[2] ### y or n == y for genome, n for transcriptome
+infile = open("%s/orthologGroups" %(taxon),"r")
+lines = infile.readlines()
+infile.close()
+outfile = open("%s-NoBact.out" %(taxon),"w")
 
-if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        print('Usage: python script.py <input_file> <output_directory>')
-        sys.exit(1)
+list = []
+for line in lines:
+    group = line.split("\t")[1]
+    taxonhit = line.split("\t")[2]
+    taxonhit = taxonhit.split("|")[0]
+    if taxonhit not in bacteria:
+        list.append(group)
+    else:
+        pass
+        print ("%s hit bacteria" %(group))
 
-    input_file = sys.argv[1]
-    output_dir = sys.argv[2]
+outfile.write(taxon)
+outfile.write(",")
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+if genome == "n":
+ for i in range(126536,251276):
+    group = "OG5_%s" %(i)
+    if group in list:
+        outfile.write("1")
+        outfile.write(",")
+    else:
+        outfile.write("-")
+        outfile.write(",")
 
-    process_blast_results(input_file, output_dir)
+elif genome == "y":
+ for i in range(126536,251276):
+    group = "OG5_%s" %(i)
+    if group in list:
+        outfile.write("1")
+        outfile.write(",")
+    else:
+        outfile.write("0")
+        outfile.write(",")
+
+outfile.write("\n")
+outfile.close()
+

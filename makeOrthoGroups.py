@@ -1,56 +1,76 @@
+import os
 import sys
+import glob
 
-# Define the list of bacterial taxons
-bacteria = [
-    'atum', 'aaeo', 'aful', 'bant', 'bsui', 'bmal', 'bpse', 'cmaq', 'cjej', 'ckor',
-    'cpne', 'ctep', 'cbot', 'cper', 'cbur', 'deth', 'drad', 'ecol', 'ftul', 'halo',
-    'hwal', 'hbut', 'ihos', 'lmon', 'mgri', 'msed', 'msmi', 'mjan', 'mmar', 'mlep',
-    'mtub', 'nequ', 'nmar', 'rsol', 'rbal', 'rpro', 'rtyp', 'sent', 'sfle', 'saur',
-    'smar', 'spne', 'ssol', 'syne', 'tvol', 'tmar', 'tpal', 'vcho', 'wend', 'wsuc',
-    'ypes'
-]
+'''
+#!/bin/bash
+#MOAB/Torque submission script for Shadow
+#PBS -l nodes=1:ppn=12,walltime=48:00:00
+#PBS -N Mal249
+cd $PBS_O_WORKDIR
+blastp -num_threads 12 -max_target_seqs 1 -query Mal249.faa -outfmt "6 std qcovhsp" -db /scratch/mbrown/Backup/work/mbrown/DB/OrthoMCL/aa_seqs_OrthoMCL-5.fasta.removedspaces.fasta -out Mal249.out 
+'''
 
-# Check for the correct number of command-line arguments
-if len(sys.argv) != 3:
-    print("Usage: python script.py <taxon> <genome>")
-    sys.exit(1)
+input=open(sys.argv[1], 'r')
+lines=input.readlines()
+input.close()
+outfile = open("orthologGroups","w")
+#outfile = open(sys.argv[2],"w")
 
-taxon = sys.argv[1]
-genome = sys.argv[2]  # 'y' for genome, 'n' for transcriptome
+dir = sys.argv[1].split(".out")[0]
 
-# Read input file
-with open(f"{taxon}/orthologGroups", "r") as infile:
-    lines = infile.readlines()
+try:
+ os.system('rm -r %s' %(dir))
+except:
+ pass
 
-# Initialize the list to store non-bacterial groups
-group_list = []
+os.system('mkdir %s' %(dir))
 
-# Process each line in the input file
+def lines_seen(input):
+ intemp = open(input, "r")
+ templines = intemp.readlines()
+ intemp.close()
+ tempout = open(input, "w")
+ lines_seen = set() 
+ 
+ for line in templines:
+    geneid = line.split()[0]
+    if geneid not in lines_seen:
+        tempout.write(line)
+        lines_seen.add(geneid)
+ tempout.close() 
+
+
 for line in lines:
-    parts = line.split("\t")
-    group = parts[1]
-    taxonhit = parts[2].split("|")[0]
-    
-    # Check if taxonhit is not in the list of bacteria
-    if taxonhit not in bacteria:
-        group_list.append(group)
-    else:
-        print(f"{group} hit bacteria")
-
-# Write the output to a file
-with open(f"{taxon}-NoBact.out", "w") as outfile:
-    outfile.write(taxon + ",")
-
-    for i in range(126536, 251276):
-        group = f"OG5_{i}"
-        if group in group_list:
-            outfile.write("1")
+    #qcovhsp = float(line.split("\t")[12])
+    qseqid = line.split("\t")[0]
+    evalue = float(line.split("\t")[10])
+    sseqid = line.split("\t")[1]
+    try:    
+        oid = line.split("OG5_")[1]
+        oid = oid.split("|")[0]
+        #if qcovhsp >= 50:
+        if evalue <= 0.00001:
+                outfile.write(qseqid)
+                outfile.write("\t")
+                outfile.write("OG5_")
+                outfile.write(oid)
+                outfile.write("\t")
+                outfile.write(sseqid)
+                outfile.write("\t")
+                outfile.write(str(evalue))
+                outfile.write("\n")
+        #   else:
+        #       pass
         else:
-            if genome == "y":
-                outfile.write("0")
-            else:
-                outfile.write("-")
-        
-        outfile.write(",")
+            pass
+    except:
+        pass
 
-    outfile.write("\n")
+outfile.close()
+
+lines_seen("orthologGroups")
+
+os.system('mv orthologGroups %s' %(dir))
+
+
