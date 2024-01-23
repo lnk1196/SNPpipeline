@@ -4,10 +4,10 @@ TAXON = config['taxon']
 READ1 = config['read1']
 READ2 = config['read2']
 ADAPTERS = config['adapters']
-#THREADS = config['threads']
+
+output_directory = f"output/{TAXON}"
 
 print("Organism Name: " + TAXON)
-#print(THREADS)
 
 # Software paths
 orthomcl_path = "/mnt/scratch/brownlab/lkirsch/Ploidy/scripts/aa_seqs_OrthoMCL-5.fasta.removedspaces.fasta.dmnd"
@@ -26,9 +26,9 @@ rule trinity_assembly:
     input:
         f"raw_reads/{READ1}", f"raw_reads/{READ2}"
     output:
-        f"{TAXON}_trinity_out_dir.Trinity.fasta",
-        f"{TAXON}_trinity_out_dir/{READ1}.PwU.qtrim.fq",
-        f"{TAXON}_trinity_out_dir/{READ2}.PwU.qtrim.fq"
+        f"{output_directory}/{TAXON}_trinity_out_dir.Trinity.fasta",
+        f"{output_directory}/{TAXON}_trinity_out_dir/{READ1}.PwU.qtrim.fq",
+        f"{output_directory}/{TAXON}_trinity_out_dir/{READ2}.PwU.qtrim.fq"
     threads: 18 
     conda:
         "trinity.yaml"
@@ -41,19 +41,19 @@ rule trinity_assembly:
         '''
 
 rule rename_assembly:
-    input: f"{TAXON}_trinity_out_dir.Trinity.fasta"
-    output: f"{TAXON}.fas"
+    input: f"{output_directory}/{TAXON}_trinity_out_dir.Trinity.fasta"
+    output: f"{output_directory}/{TAXON}.fas"
     shell:
         '''
         cp {input} {output}
         '''                                                                                                                                                                       
 
 rule predict_orfs:
-    input: f"{TAXON}.fas"
-    output: f"{TAXON}.fas.transdecoder_dir/longest_orfs.pep",
-            f"{TAXON}.fas.transdecoder_dir/longest_orfs.cds",
-            f"{TAXON}.fas.transdecoder_dir/longest_orfs.gff3",
-            f"{TAXON}.fas.transdecoder_dir/base_freqs.dat"
+    input: f"{output_directory}/{TAXON}.fas"
+    output: f"{output_directory}/{TAXON}.fas.transdecoder_dir/longest_orfs.pep",
+            f"{output_directory}/{TAXON}.fas.transdecoder_dir/longest_orfs.cds",
+            f"{output_directory}/{TAXON}.fas.transdecoder_dir/longest_orfs.gff3",
+            f"{output_directory}/{TAXON}.fas.transdecoder_dir/base_freqs.dat"
     threads: 18 
     conda:
         "transdecoder.yaml"
@@ -64,13 +64,13 @@ rule predict_orfs:
 
 
 rule rename_longest_orfs:
-    input: f"{TAXON}.fas.transdecoder_dir/longest_orfs.pep"
-    output: f"{TAXON}.faa"
+    input: f"{output_directory}/{TAXON}.fas.transdecoder_dir/longest_orfs.pep"
+    output: f"{output_directory}/{TAXON}.faa"
     shell: "cp {input} {output}"
 
 rule diamond_blast:
-    input: f"{TAXON}.faa"
-    output: f"{TAXON}.faa.OG5DMND.out"
+    input: f"{output_directory}/{TAXON}.faa"
+    output: f"{output_directory}/{TAXON}.faa.OG5DMND.out"
     conda:
         "diamond.yaml"
     threads: 18 
@@ -80,32 +80,37 @@ rule diamond_blast:
         '''
 
 rule make_ortho_groups:
-    input: f"{TAXON}.faa.OG5DMND.out"
-    output: f"{TAXON}.faa.OG5DMND/orthologGroups"
+    input: f"{output_directory}/{TAXON}.faa.OG5DMND.out"
+    output: f"{output_directory}/{TAXON}.faa.OG5DMND/orthologGroups"
     shell:
         '''
         python3 {make_ortho_groups_path} {input} 
         '''
         
 rule bac_check:
-    input: f"{TAXON}.faa.OG5DMND"
-    output: f"{TAXON}.faa.OG5DMND-NoBact.out"
+    input: f"{output_directory}/{TAXON}.faa.OG5DMND"
+    output: f"{output_directory}/{TAXON}.faa.OG5DMND-NoBact.out"
     shell:
         '''
         python3 {bacteria_check_path} {input} n
         '''
         
 rule remove_bac:
-    input: f"{TAXON}.faa.OG5DMND/orthologGroups", f"{TAXON}.fas"
-    output: f"{TAXON}.faa.OG5DMND/orthologGroups-NoBact.out.fas"
+    input: f"{output_directory}/{TAXON}.faa.OG5DMND/orthologGroups", f"{output_directory}/{TAXON}.fas"
+    output: f"{output_directory}/{TAXON}.faa.OG5DMND/orthologGroups-NoBact.out.fas"
     shell:
         '''
         python3 {remove_bact_path} {input[0]} {input[1]} 
         '''
 
 rule bbmap_repair:
-    input: f"{TAXON}_trinity_out_dir/{READ1}.PwU.qtrim.fq" , f"{TAXON}_trinity_out_dir/{READ2}.PwU.qtrim.fq" 
-    output: f"fixed_1_{TAXON}.fq.gz", f"fixed_2_{TAXON}.fq.gz", f"singletons_{TAXON}.fq.gz"
+    input: 
+        f"{output_directory}/{TAXON}_trinity_out_dir/{READ1}.PwU.qtrim.fq" , 
+        f"{output_directory}/{TAXON}_trinity_out_dir/{READ2}.PwU.qtrim.fq" 
+    output: 
+        f"{output_directory}/fixed_1_{TAXON}.fq.gz", 
+        f"{output_directory}/fixed_2_{TAXON}.fq.gz", 
+        f"{output_directory}/singletons_{TAXON}.fq.gz"
     conda:
         "bbmap.yaml"
     shell:
@@ -114,47 +119,51 @@ rule bbmap_repair:
         '''
 
 rule bowtie_ref:
-    input: f"{TAXON}.faa.OG5DMND/orthologGroups-NoBact.out.fas"
+    input: f"{output_directory}/{TAXON}.faa.OG5DMND/orthologGroups-NoBact.out.fas"
     params: 
-        basename = f"{TAXON}_ref.fasta"
+        basename = f"{output_directory}/{TAXON}_ref.fasta"
     output: 
-        f"{TAXON}_ref.fasta.1.bt2",
-        f"{TAXON}_ref.fasta.2.bt2",
-        f"{TAXON}_ref.fasta.3.bt2",
-        f"{TAXON}_ref.fasta.4.bt2",
-        f"{TAXON}_ref.fasta.rev.1.bt2",
-        f"{TAXON}_ref.fasta.rev.2.bt2"
+        f"{output_directory}/{TAXON}_ref.fasta.1.bt2",
+        f"{output_directory}/{TAXON}_ref.fasta.2.bt2",
+        f"{output_directory}/{TAXON}_ref.fasta.3.bt2",
+        f"{output_directory}/{TAXON}_ref.fasta.4.bt2",
+        f"{output_directory}/{TAXON}_ref.fasta.rev.1.bt2",
+        f"{output_directory}/{TAXON}_ref.fasta.rev.2.bt2"
     conda:
         "bowtie2.yaml"
+    log:
+        f"{output_directory}/{TAXON}_ref_build.log"
     shell:
         '''
-        bowtie2-build {input} {params.basename}
+        bowtie2-build {input} {params.basename} > {output_directory}/{TAXON}_ref_build.log
         '''
 
 rule bowtie_align:
     input:
-        f"{TAXON}_ref.fasta.1.bt2",
-        f"{TAXON}_ref.fasta.2.bt2",
-        f"{TAXON}_ref.fasta.3.bt2",
-        f"{TAXON}_ref.fasta.4.bt2",
-        f"{TAXON}_ref.fasta.rev.1.bt2",
-        f"{TAXON}_ref.fasta.rev.2.bt2",
-        f"fixed_1_{TAXON}.fq.gz", 
-        f"fixed_2_{TAXON}.fq.gz"
+        f"{output_directory}/{TAXON}_ref.fasta.1.bt2",
+        f"{output_directory}/{TAXON}_ref.fasta.2.bt2",
+        f"{output_directory}/{TAXON}_ref.fasta.3.bt2",
+        f"{output_directory}/{TAXON}_ref.fasta.4.bt2",
+        f"{output_directory}/{TAXON}_ref.fasta.rev.1.bt2",
+        f"{output_directory}/{TAXON}_ref.fasta.rev.2.bt2",
+        f"{output_directory}/fixed_1_{TAXON}.fq.gz", 
+        f"{output_directory}/fixed_2_{TAXON}.fq.gz"
     output:
-        f"{TAXON}.alignment.sam"
+        f"{output_directory}/{TAXON}.alignment.sam"
     conda:
         "bowtie2.yaml"
+    log:
+        f"{output_directory}/{TAXON}.alignment.log"
     threads: 18 
     shell:
         '''
-        bowtie2 -x {TAXON}_ref.fasta -1 {input[6]} -2 {input[7]} -S {output} -p {threads}
+        bowtie2 -x {TAXON}_ref.fasta -1 {input[6]} -2 {input[7]} -S {output} -p {threads} > {output_directory}/{TAXON}_alignment.log
         '''
 
 
 rule SAM_to_BAM:
-    input: f"{TAXON}.alignment.sam"
-    output: f"{TAXON}.alignment.bam"
+    input: f"{output_directory}/{TAXON}.alignment.sam"
+    output: f"{output_directory}/{TAXON}.alignment.bam"
     conda:
         "samtools.yaml"
     shell:
@@ -164,21 +173,22 @@ rule SAM_to_BAM:
 
 
 rule SAM_sort:
-    input: f"{TAXON}.alignment.bam"
-    output: f"{TAXON}.alignment.sorted.bam"
+    input: f"{output_directory}/{TAXON}.alignment.bam"
+    output: f"{output_directory}/{TAXON}.alignment.sorted.bam"
     conda:
         "samtools.yaml"
     shell:
         '''
         samtools sort -o {output} {input}
+        rm {output_directory}/{TAXON}.alignment.sam
         '''
 
 
 rule mpileup:
     input: 
-        f"{TAXON}.faa.OG5DMND/orthologGroups-NoBact.out.fas",
-        f"{TAXON}.alignment.sorted.bam"
-    output: f"{TAXON}.bcf"
+        f"{output_directory}/{TAXON}.faa.OG5DMND/orthologGroups-NoBact.out.fas",
+        f"{output_directory}/{TAXON}.alignment.sorted.bam"
+    output: f"{output_directory}/{TAXON}.bcf"
     threads: 18 
     conda:
         "bcftools.yaml"
@@ -188,8 +198,8 @@ rule mpileup:
         '''
 
 rule call_SNPs:
-    input: f"{TAXON}.bcf"
-    output: f"{TAXON}.vcf"
+    input: f"{output_directory}/{TAXON}.bcf"
+    output: f"{output_directory}/{TAXON}.vcf"
     threads: 18 
     conda:
         "bcftools.yaml"
@@ -199,7 +209,7 @@ rule call_SNPs:
         '''
 
 rule SNP_density:
-    input: f"{TAXON}.vcf"
+    input: f"{output_directory}/{TAXON}.vcf"
     output: f"{TAXON}.snpden"
     conda:
         "vcftools.yaml"
