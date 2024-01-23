@@ -12,7 +12,7 @@ os.makedirs(taxon_dir, exist_ok=True)
      
 rule all:
     input:
-        expand(os.path.join(taxon_dir, f"{TAXON}_R.snpden"))
+        f"{TAXON}_R.snpden"
 
 # define rules
 rule bowtie_ref:
@@ -100,10 +100,10 @@ rule call_SNPs:
 
 rule SNP_density:
     input: os.path.join(taxon_dir, f"{TAXON}_R.vcf")
-    output: os.path.join(taxon_dir, f"{TAXON}_R.snpden")
+    output: f"{TAXON}_R.snpden"
     conda:
         "vcftools.yaml"
     shell:
         '''
-        vcftools --vcf {input} --SNPdensity 1000 --out {taxon_dir}/{TAXON}_R > {output}.log
+        vcftools --vcf {input} --SNPdensity 1000 --out {TAXON}_R > {output}.log
         '''

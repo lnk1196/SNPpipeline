@@ -13,9 +13,9 @@ print("Organism Name: " + TAXON)
 orthomcl_path = "/mnt/scratch/brownlab/lkirsch/Ploidy/scripts/aa_seqs_OrthoMCL-5.fasta.removedspaces.fasta.dmnd"
 
 # Python script paths
-make_ortho_groups_path = "/mnt/scratch/brownlab/lkirsch/Ploidy/scripts/makeOrthoGroups.py"
-bacteria_check_path = "/mnt/scratch/brownlab/lkirsch/Ploidy/scripts/bacCheck.py"
-remove_bact_path = "/mnt/scratch/brownlab/lkirsch/Ploidy/scripts/removeBac.py"
+make_ortho_groups_path = "makeOrthoGroups.py"
+bacteria_check_path = "bacCheck.py"
+remove_bact_path = "removeBac.py"
 
 rule all:
     input:
