@@ -7,6 +7,7 @@ ADAPTERS = config['adapters']
 THREADS = config['threads']
 
 output_directory = f"output/{TAXON}"
+os.makedirs(output_directory, exist_ok=True)
 
 print("Organism Name: " + TAXON)
 
@@ -103,7 +104,6 @@ rule trimmed_1:
     shell:
         '''
         cat {input[0]} {input[1]} > {output}
-        rm {output_directory}/trimmed_{TAXON}_1.paired.fastq.gz {output_directory}/trimmed_{TAXON}_1.unpaired.fastq.gz
         '''
 
 rule trimmed_2:
@@ -112,7 +112,6 @@ rule trimmed_2:
     shell:
         '''
         cat {input[0]} {input[1]} > {output}
-        rm {output_directory}/trimmed_{TAXON}_2.paired.fastq.gz {output_directory}/trimmed_{TAXON}_2.unpaired.fastq.gz
         '''
 
 rule bbmap_repair:
@@ -122,7 +121,7 @@ rule bbmap_repair:
         "yaml/bbmap.yaml"
     shell:
         '''
-        repair.sh in1={input[0]} in2={input[1]} out1={output[0]} out2={output[1]} outsingle={output[2]}
+        repair.sh in1={input[0]} in2={input[1]} out1={output[0]} out2={output[1]} outsingle={output[2]} -Xmx10g
         '''
 
 
@@ -225,7 +224,7 @@ rule SNP_density:
 
 rule num_snps:
     input: f"{output_directory}/{TAXON}_ref_build.log"
-    output: f"{output_directory}/{TAXON}_snps.txt" , f"{output_directory}/{TAXON}_taxon.txt"
+    output: f"{output_directory}/{TAXON}_bases.txt" , f"{output_directory}/{TAXON}_taxon.txt"
     shell: 
         '''
         grep 'len:' {input} | head -n 1 | sed 's/len: //g' > {output[0]} 
@@ -234,23 +233,26 @@ rule num_snps:
 
 rule num_bases:
     input: f"{TAXON}_snpden.log"
-    output: f"{output_directory}/{TAXON}_bases.txt"
+    output: f"{output_directory}/{TAXON}_snps.txt"
     shell:
         '''
-        grep -oP 'After filtering, kept \K\d+' {input} | sed -n '2p' > {output}
+        grep -oP 'After filtering, kept \\K\\d+' {input} | sed -n '2p' > {output}
         '''
 
 rule total_contigs:
     input: f"{output_directory}/{TAXON}.faa.OG5DMND/orthologGroups-NoBact.out.fas"
     output: f"{output_directory}/{TAXON}_total_contigs.txt"
-    shell: "grep -c ">" {input} > {output}"
+    shell: 
+        '''
+        grep -c ">" {input} > {output}
+        '''
 
 rule calc_SNPden:
     input: f'{TAXON}.snpden'
     output: f'{output_directory}/{TAXON}_calc.txt'
     shell:
         '''
-        awk '{ sum += $3 } END { print sum / NR }' {input} > {output}
+        awk '{{ sum += $3 }} END {{ print sum / NR }}' {input} > {output}
         '''
 
 rule unique_contigs:
@@ -258,12 +260,12 @@ rule unique_contigs:
     output: f'{output_directory}/{TAXON}_IDs.txt'
     shell:
         '''
-        awk '{print $1}' {input} | sort -u | wc -l >> {output}
+        awk '{{print $1}}' {input} | sort -u | wc -l > {output}
         '''
 
 rule compile_data:
     input:
-        taxon=f"{output_directory}/{TAXON}_taxon.txt"
+        taxon=f"{output_directory}/{TAXON}_taxon.txt",
         snps=f"{output_directory}/{TAXON}_snps.txt",
         bases=f"{output_directory}/{TAXON}_bases.txt",
         unique_contigs=f'{output_directory}/{TAXON}_IDs.txt',
