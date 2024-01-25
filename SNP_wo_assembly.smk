@@ -4,6 +4,7 @@ TAXON = config['taxon']
 READ1 = config['read1']
 READ2 = config['read2']
 ADAPTERS = config['adapters']
+THREADS = config['threads']
 
 output_directory = f"output/{TAXON}"
 
@@ -13,13 +14,13 @@ print("Organism Name: " + TAXON)
 orthomcl_path = "/mnt/scratch/brownlab/lkirsch/Ploidy/scripts/aa_seqs_OrthoMCL-5.fasta.removedspaces.fasta.dmnd"
 
 # Python script paths
-make_ortho_groups_path = "makeOrthoGroups.py"
-bacteria_check_path = "bacCheck.py"
-remove_bact_path = "removeBac.py"
+make_ortho_groups_path = "/mnt/scratch/brownlab/lkirsch/Ploidy/scripts/makeOrthoGroups.py"
+bacteria_check_path = "/mnt/scratch/brownlab/lkirsch/Ploidy/scripts/bacCheck.py"
+remove_bact_path = "/mnt/scratch/brownlab/lkirsch/Ploidy/scripts/removeBac.py"
 
 rule all:
     input:
-        f"{TAXON}.snpden"
+        f'{TAXON}_summary.tsv'
 
 # Define rules
 rule predict_orfs:
@@ -29,7 +30,7 @@ rule predict_orfs:
             f"{output_directory}/{TAXON}.fas.transdecoder_dir/longest_orfs.cds",
             f"{output_directory}/{TAXON}.fas.transdecoder_dir/longest_orfs.gff3",
             f"{output_directory}/{TAXON}.fas.transdecoder_dir/base_freqs.dat"
-    threads: 40
+    threads: THREADS
     conda:
         "yaml/transdecoder.yaml"
     shell:
@@ -46,7 +47,7 @@ rule rename_longest_orfs:
 rule diamond_blast:
     input:  f"{output_directory}/{TAXON}.faa"
     output:  f"{output_directory}/{TAXON}.faa.OG5DMND.out"
-    threads: 40
+    threads: THREADS
     conda:
         "yaml/diamond.yaml"
     shell:
@@ -88,7 +89,7 @@ rule trimmomatic:
          f"{output_directory}/trimmed_{TAXON}_2.paired.fastq.gz"
     params:
         adapter = ADAPTERS
-    threads: 40
+    threads: THREADS
     conda:
         "yaml/trimmomatic.yaml"
     shell:
@@ -124,6 +125,7 @@ rule bbmap_repair:
         repair.sh in1={input[0]} in2={input[1]} out1={output[0]} out2={output[1]} outsingle={output[2]}
         '''
 
+
 rule bowtie_ref:
     input:  f"{output_directory}/{TAXON}.faa.OG5DMND/orthologGroups-NoBact.out.fas"
     params: 
@@ -156,14 +158,12 @@ rule bowtie_align:
          f"{output_directory}/fixed_2_{TAXON}.fq.gz"
     output:
          f"{output_directory}/{TAXON}.alignment.sam"
-    threads: 40
-    log:
-        f"{output_directory}/{TAXON}_alignment.log"
+    threads: THREADS
     conda:
         "yaml/bowtie2.yaml"
     shell:
         '''
-        bowtie2 -x {output_directory}/{TAXON}_ref.fasta -1 {input[6]} -2 {input[7]} -S {output} -p {threads} > {output_directory}/{TAXON}_alignment.log
+        bowtie2 -x {output_directory}/{TAXON}_ref.fasta -1 {input[6]} -2 {input[7]} -S {output} -p {threads}
         '''
 
 rule SAM_to_BAM:
@@ -192,7 +192,7 @@ rule mpileup:
          f"{output_directory}/{TAXON}.faa.OG5DMND/orthologGroups-NoBact.out.fas",
          f"{output_directory}/{TAXON}.alignment.sorted.bam"
     output:  f"{output_directory}/{TAXON}.bcf"
-    threads: 40
+    threads: THREADS
     conda:
         "yaml/bcftools.yaml"
     shell:
@@ -203,7 +203,7 @@ rule mpileup:
 rule call_SNPs:
     input:  f"{output_directory}/{TAXON}.bcf"
     output:  f"{output_directory}/{TAXON}.vcf"
-    threads: 40
+    threads: THREADS
     conda:
         "yaml/bcftools.yaml"
     shell:
@@ -216,8 +216,61 @@ rule SNP_density:
     output:  f"{TAXON}.snpden"
     conda:
         "yaml/vcftools.yaml"
+    log:
+        f"{TAXON}_snpden.log"
     shell:
         '''
-        vcftools --vcf {input} --SNPdensity 1000 --out {TAXON} > {output}.log
+        vcftools --vcf {input} --SNPdensity 1000 --out {TAXON} > {TAXON}_snpden.log 2>&1 
         '''
 
+rule num_snps:
+    input: f"{output_directory}/{TAXON}_ref_build.log"
+    output: f"{output_directory}/{TAXON}_snps.txt" , f"{output_directory}/{TAXON}_taxon.txt"
+    shell: 
+        '''
+        grep 'len:' {input} | head -n 1 | sed 's/len: //g' > {output[0]} 
+        echo {TAXON} > {output[1]}
+        '''
+
+rule num_bases:
+    input: f"{TAXON}_snpden.log"
+    output: f"{output_directory}/{TAXON}_bases.txt"
+    shell:
+        '''
+        grep -oP 'After filtering, kept \K\d+' {input} | sed -n '2p' > {output}
+        '''
+
+rule total_contigs:
+    input: f"{output_directory}/{TAXON}.faa.OG5DMND/orthologGroups-NoBact.out.fas"
+    output: f"{output_directory}/{TAXON}_total_contigs.txt"
+    shell: "grep -c ">" {input} > {output}"
+
+rule calc_SNPden:
+    input: f'{TAXON}.snpden'
+    output: f'{output_directory}/{TAXON}_calc.txt'
+    shell:
+        '''
+        awk '{ sum += $3 } END { print sum / NR }' {input} > {output}
+        '''
+
+rule unique_contigs:
+    input: f'{TAXON}.snpden'
+    output: f'{output_directory}/{TAXON}_IDs.txt'
+    shell:
+        '''
+        awk '{print $1}' {input} | sort -u | wc -l >> {output}
+        '''
+
+rule compile_data:
+    input:
+        taxon=f"{output_directory}/{TAXON}_taxon.txt"
+        snps=f"{output_directory}/{TAXON}_snps.txt",
+        bases=f"{output_directory}/{TAXON}_bases.txt",
+        unique_contigs=f'{output_directory}/{TAXON}_IDs.txt',
+        total_contigs=f"{output_directory}/{TAXON}_total_contigs.txt",
+        calc_snpden=f'{output_directory}/{TAXON}_calc.txt'
+    output: f'{TAXON}_summary.tsv'
+    shell:
+        '''
+        paste {input} >> {output}
+        '''

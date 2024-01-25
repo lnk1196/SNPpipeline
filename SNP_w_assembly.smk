@@ -217,3 +217,55 @@ rule SNP_density:
         '''
         vcftools --vcf {input} --SNPdensity 1000 --out {TAXON} > {output}.log
         '''
+
+rule num_snps:
+    input: f"{output_directory}/{TAXON}_ref_build.log"
+    output: f"{output_directory}/{TAXON}_snps.txt" , f"{output_directory}/{TAXON}_taxon.txt"
+    shell: 
+        '''
+        grep 'len:' {input} | head -n 1 | sed 's/len: //g' > {output[0]} 
+        echo {TAXON} > {output[1]}
+        '''
+
+rule num_bases:
+    input: f"{TAXON}_snpden.log"
+    output: f"{output_directory}/{TAXON}_bases.txt"
+    shell:
+        '''
+        grep -oP 'After filtering, kept \K\d+' {input} | sed -n '2p' > {output}
+        '''
+
+rule total_contigs:
+    input: f"{output_directory}/{TAXON}.faa.OG5DMND/orthologGroups-NoBact.out.fas"
+    output: f"{output_directory}/{TAXON}_total_contigs.txt"
+    shell: "grep -c ">" {input} > {output}"
+
+rule calc_SNPden:
+    input: f'{TAXON}.snpden'
+    output: f'{output_directory}/{TAXON}_calc.txt'
+    shell:
+        '''
+        awk '{ sum += $3 } END { print sum / NR }' {input} > {output}
+        '''
+
+rule unique_contigs:
+    input: f'{TAXON}.snpden'
+    output: f'{output_directory}/{TAXON}_IDs.txt'
+    shell:
+        '''
+        awk '{print $1}' {input} | sort -u | wc -l >> {output}
+        '''
+
+rule compile_data:
+    input:
+        taxon=f"{output_directory}/{TAXON}_taxon.txt"
+        snps=f"{output_directory}/{TAXON}_snps.txt",
+        bases=f"{output_directory}/{TAXON}_bases.txt",
+        unique_contigs=f'{output_directory}/{TAXON}_IDs.txt',
+        total_contigs=f"{output_directory}/{TAXON}_total_contigs.txt",
+        calc_snpden=f'{output_directory}/{TAXON}_calc.txt'
+    output: f'{TAXON}_summary.tsv'
+    shell:
+        '''
+        paste {input} >> {output}
+        '''
