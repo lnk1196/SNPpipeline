@@ -1,2 +1,2 @@
 # SNPpipeline
-Base state of snakemake SNP pipeline
+Backup of snakemake SNP pipeline
